@@ -104,13 +104,17 @@ class SshSession(BaseSession):
     returned by :func:`ssh_client`.
 
     :param client: an instance of a connected :class:`paramiko.SSHClient`
+    :param sftp: open an sftp instance on connection default=True
     :param auto_close: if True, automatically close the ssh session when using
         the 'with' statement.
     """
-    def __init__(self, client, auto_close=True):
+    def __init__(self, client, sftp=True, auto_close=True):
         BaseSession.__init__(self, auto_close=auto_close)
         self.ssh_client = client
-        self.sftp = client.open_sftp()
+        if sftp:
+            self.sftp = client.open_sftp()
+        else:
+            self.sftp = None
 
     def __str__(self):
         username = getattr(self.ssh_client, 'username', None)
@@ -123,6 +127,8 @@ class SshSession(BaseSession):
         return BaseSession.__str__(self)
 
     def open(self, filename, mode='r', bufsize=-1):
+        if not self.sftp:
+            raise RuntimeError('You must enable sftp to use this function')
         return self.sftp.open(filename, mode=mode, bufsize=bufsize)
 
     def execute(self, command, **kwargs):
@@ -132,18 +138,24 @@ class SshSession(BaseSession):
         self.ssh_client.close()
 
     def isdir(self, path):
+        if not self.sftp:
+            raise RuntimeError('You must enable sftp to use this function')
         try:
             return stat.S_ISDIR(self.sftp.stat(path).st_mode)
         except IOError:
             return False
 
     def islink(self, path):
+        if not self.sftp:
+            raise RuntimeError('You must enable sftp to use this function')
         try:
             return stat.S_ISLNK(self.sftp.lstat(path).st_mode)
         except IOError:
             return False
 
     def exists(self, path):
+        if not self.sftp:
+            raise RuntimeError('You must enable sftp to use this function')
         try:
             self.ftp.lstat(path).st_mode
         except IOError:
@@ -151,9 +163,13 @@ class SshSession(BaseSession):
         return True
 
     def mkdir(self, path):
+        if not self.sftp:
+            raise RuntimeError('You must enable sftp to use this function')
         self.sftp.mkdir(path)
 
     def walk(self, top, topdown=True, onerror=None, followlinks=False):
+        if not self.sftp:
+            raise RuntimeError('You must enable sftp to use this function')
         try:
             names = self.sftp.listdir(top)
         except Exception as err:
